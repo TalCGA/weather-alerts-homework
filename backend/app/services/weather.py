@@ -92,5 +92,5 @@ def get_hourly_forecast_for_city(
                 precipitation=precipitation,
             )
         )
-
-    return points
+    points.sort(key=lambda p: p.time)
+    return points[:hours_ahead]
