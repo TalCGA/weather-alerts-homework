@@ -46,6 +46,7 @@ class AlertCreate(AlertBase):
 
 class AlertRead(AlertBase):
     id: int
+    is_active: bool  
     unit: Unit
 
     class Config:

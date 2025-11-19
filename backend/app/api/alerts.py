@@ -44,5 +44,21 @@ def get_alerts_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    #TODO: Replace with Tomorrow.io real weather evaluation logic
-    return alerts_service.evaluate_alerts_for_user_dummy(db, user=current_user)
+    return alerts_service.evaluate_alerts_for_user(db, user=current_user)
+
+
+
+
+@router.post("/evaluate", response_model=List[AlertRead])
+def evaluate_my_alerts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Manually trigger evaluation of all alerts for the current user.
+    This simulates what a cron/worker would do in a real system but returns
+    the updated Alert objects (with is_active already updated).
+    """
+    alerts_service.evaluate_alerts_for_user(db, user=current_user)
+
+    return alerts_service.list_alerts(db, user=current_user)

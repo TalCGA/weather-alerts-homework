@@ -18,7 +18,8 @@ class Alert(Base):
     comparison = Column(String, nullable=False)  # "GT" / "GTE" / "LT" / "LTE"
     threshold = Column(Float, nullable=False)
     unit = Column(String, nullable=False)        # "C" / "km/h" / "mm"
-
+    
+    is_active = Column(Boolean, nullable=False, default=False) 
     notify_via_email = Column(Boolean, nullable=False, default=False)
     last_email_sent_date = Column(Date, nullable=True)
 
