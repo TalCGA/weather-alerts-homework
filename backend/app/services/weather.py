@@ -16,7 +16,10 @@ class WeatherServiceError(Exception):
 def _build_time_range(hours_ahead: int) -> tuple[str, str]:
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     end = now + timedelta(hours=hours_ahead)
-    return now.isoformat().replace("+00:00", "Z"), end.isoformat().replace("+00:00", "Z")
+    return (
+        now.isoformat().replace("+00:00", "Z"),
+        end.isoformat().replace("+00:00", "Z"),
+    )
 
 
 def get_hourly_forecast_for_city(
@@ -26,10 +29,13 @@ def get_hourly_forecast_for_city(
     if not settings.TOMORROW_IO_API_KEY or settings.TOMORROW_IO_API_KEY == "change_me":
         raise WeatherServiceError("Tomorrow.io API key is not configured")
 
+    # Normalize city string a bit (remove extra spaces/commas)
+    location = " ".join(city_name.replace(",", " ").split())
+
     start_time, end_time = _build_time_range(hours_ahead)
 
     params = {
-        "location": city_name,
+        "location": location,
         "timesteps": "1h",
         "units": "metric",
         "apikey": settings.TOMORROW_IO_API_KEY,
@@ -58,7 +64,6 @@ def get_hourly_forecast_for_city(
         )
 
     data = resp.json()
-
     try:
         hourly = data["timelines"]["hourly"]
     except KeyError as exc:
