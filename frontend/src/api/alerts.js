@@ -19,3 +19,7 @@ export async function getAlertsStatus() {
   const res = await api.get("/alerts/status");
   return res.data;
 }
+
+export async function deleteAlert(id) {
+  const res = await api.delete(`/alerts/${id}`);
+}

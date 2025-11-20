@@ -8,9 +8,10 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Button,
 } from "@mui/material";
 
-export default function AlertsTable({ alerts, statuses }) {
+export default function AlertsTable({ alerts, statuses, onEdit, onDelete }) {
   function getStatusForAlert(alertId) {
     return statuses.find((s) => s.alert_id === alertId);
   }
@@ -31,6 +32,7 @@ export default function AlertsTable({ alerts, statuses }) {
             <TableCell>Unit</TableCell>
             <TableCell align="center">Currently active</TableCell>
             <TableCell align="center">Next 3 days</TableCell>
+            <TableCell align="center">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -67,6 +69,25 @@ export default function AlertsTable({ alerts, statuses }) {
                         </span>
                     </Stack>
                     )}
+                </TableCell>
+                <TableCell align="center">
+                    <Stack direction="row" spacing={1} justifyContent="center">
+                        <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => onEdit(a)}
+                        >
+                        Edit
+                        </Button>
+                        <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        onClick={() => onDelete(a.id)}
+                        >
+                        Delete
+                        </Button>
+                    </Stack>
                 </TableCell>
               </TableRow>
             );

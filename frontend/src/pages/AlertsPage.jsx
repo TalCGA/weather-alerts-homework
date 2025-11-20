@@ -4,7 +4,10 @@ import MUIAlert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import { useNavigate } from "react-router-dom";
 import {
-  createAlert, evaluateAlerts, getAlertsStatus, listAlerts,
+  createAlert,
+  getAlertsStatus,
+  listAlerts,
+  deleteAlert,
 } from "../api/alerts";
 
 import AlertsHeader from "../components/AlertsHeader.jsx";
@@ -26,25 +29,36 @@ export default function AlertsPage({ onLogout }) {
   const [threshold, setThreshold] = useState(25);
   const [notifyEmail, setNotifyEmail] = useState(false);
 
+  const [nameError, setNameError] = useState("");
+  const [cityError, setCityError] = useState("");
+  const [thresholdError, setThresholdError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+
+
   async function loadAlerts() {
     setLoading(true);
-    setError("");  
+    setError("");
 
     try {
-      const [alertsRes, statusRes] = await Promise.all([
-        listAlerts(),
-        getAlertsStatus(),
-      ]);
-      setAlerts(alertsRes);
-      setStatuses(statusRes);
+        const alertsRes = await listAlerts();
+        setAlerts(alertsRes);
+
+        try {
+        const statusRes = await getAlertsStatus();
+        setStatuses(statusRes);
+        } catch (statusErr) {
+        console.error("Failed to load alert statuses", statusErr);
+        }
     } catch (e) {
-        const msg = e.response?.data?.detail || 
-            "Failed to load alerts. Please check that city names are valid and try again.";
+        console.error("Failed to load alerts list", e);
+        const msg =
+        e.response?.data?.detail ||
+        "Failed to load alerts. Please try again.";
         setError(msg);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  }
+    }
 
   useEffect(() => {
     if (!localStorage.getItem("access_token")) {
@@ -59,12 +73,60 @@ export default function AlertsPage({ onLogout }) {
     navigate("/login", { replace: true });
   }
 
+  function startEditAlert(alert) {
+    setEditingId(alert.id);
+    setName(alert.name);
+    setCity(alert.city_name);
+    setParameter(alert.parameter);
+    setComparison(alert.comparison);
+    setThreshold(alert.threshold);
+    setNotifyEmail(alert.notify_via_email);
+    setError("");
+    setNameError("");
+    setCityError("");
+    setThresholdError("");
+  }
+
+  function cancelEditAlert() {
+    setEditingId(null);
+    setName("");
+    setCity("Tel Aviv");
+    setParameter("temperature");
+    setComparison("GT");
+    setThreshold(25);
+    setNotifyEmail(false);
+    setNameError("");
+    setCityError("");
+    setThresholdError("");
+  }
+
+  async function handleDeleteAlert(alertId) {
+    if (!window.confirm("Are you sure you want to delete this alert?")) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await deleteAlert(alertId);
+      await loadAlerts(false);
+      if (editingId === alertId) {
+        cancelEditAlert();
+      }
+    } catch (e) {
+      console.error("Failed to delete alert", e);
+      const msg =
+        e.response?.data?.detail || "Failed to delete alert. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleEvaluate() {
     setLoading(true);
     setError("");
 
     try {
-      await evaluateAlerts();
       await loadAlerts();
     } catch (e) {
         console.error("Failed to evaluate alerts", e);
@@ -77,30 +139,63 @@ export default function AlertsPage({ onLogout }) {
   }
 
   async function handleCreateAlert() {
-    if (!name || !city) return;
-    setLoading(true);
-    setError(""); 
+        let hasError = false;
+        setNameError("");
+        setCityError("");
+        setThresholdError("");
 
-    try {
-      await createAlert({
-        name,
-        city_name: city,
-        parameter,
-        comparison,
-        threshold: Number(threshold),
-        notify_via_email: notifyEmail,
-      });
-      setName("");
-      await loadAlerts();
-    } catch (e) {
+        if (!name.trim()) {
+        setNameError("Alert name is required");
+        hasError = true;
+        }
+
+        if (!city.trim()) {
+        setCityError("City is required");
+        hasError = true;
+        }
+
+        const thresholdNumber = Number(threshold);
+        if (!Number.isFinite(thresholdNumber) || thresholdNumber <= 0) {
+        setThresholdError("Threshold must be a positive number");
+        hasError = true;
+        }
+
+        if (hasError) {
+        return; 
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+        const payload = {
+            name,
+            city_name: city,
+            parameter,
+            comparison,
+            threshold: thresholdNumber,
+            notify_via_email: notifyEmail,
+        };
+
+        if (editingId === null) {
+            await createAlert(payload);
+        } else {
+            await createAlert(payload);
+            await deleteAlert(editingId);
+        }
+
+        cancelEditAlert();   
+        await loadAlerts(false);
+        } catch (e) {
         console.error("Failed to create alert", e);
-        const msg = e.response?.data?.detail || 
-        "Failed to create alert. Please check your inputs (city name, threshold, etc.).";
+        const msg =
+            e.response?.data?.detail ||
+            "Failed to create alert. Please check your inputs (city name, threshold, etc.).";
         setError(msg);
-    } finally {
-      setLoading(false);
+        } finally {
+        setLoading(false);
+        }
     }
-  }
 
   return (
     <>
@@ -117,23 +212,42 @@ export default function AlertsPage({ onLogout }) {
             </Box>
         )}
         <AlertForm
-            name={name}
-            city={city}
-            parameter={parameter}
-            comparison={comparison}
-            threshold={threshold}
-            notifyEmail={notifyEmail}
-            onNameChange={setName}
-            onCityChange={setCity}
-            onParameterChange={setParameter}
-            onComparisonChange={setComparison}
-            onThresholdChange={setThreshold}
-            onNotifyEmailChange={setNotifyEmail}
-            onSubmit={handleCreateAlert}
-            loading={loading}
+          name={name}
+          city={city}
+          parameter={parameter}
+          comparison={comparison}
+          threshold={threshold}
+          notifyEmail={notifyEmail}
+          onNameChange={(value) => {
+            setName(value);
+            setNameError("");
+          }}
+          onCityChange={(value) => {
+            setCity(value);
+            setCityError("");
+          }}
+          onParameterChange={setParameter}
+          onComparisonChange={setComparison}
+          onThresholdChange={(value) => {
+            setThreshold(value);
+            setThresholdError("");
+          }}
+          onNotifyEmailChange={setNotifyEmail}
+          onSubmit={handleCreateAlert}
+          loading={loading}
+          nameError={nameError}
+          cityError={cityError}
+          thresholdError={thresholdError}
+          isEditing={editingId !== null}
+          onCancelEdit={cancelEditAlert}
         />
 
-        <AlertsTable alerts={alerts} statuses={statuses} />
+        <AlertsTable
+        alerts={alerts}
+        statuses={statuses}
+        onEdit={startEditAlert}
+        onDelete={handleDeleteAlert}
+        />
      </Container>
     </>
   );

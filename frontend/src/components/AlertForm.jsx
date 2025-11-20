@@ -29,6 +29,11 @@ export default function AlertForm({
   onNotifyEmailChange,
   onSubmit,
   loading,
+  nameError,
+  cityError,
+  thresholdError,
+  isEditing,
+  onCancelEdit,
 }) {
   return (
     <Paper sx={{ p: 3, mb: 4, boxShadow: 3 }}>
@@ -47,11 +52,15 @@ export default function AlertForm({
           label="Alert name"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
+            error={Boolean(nameError)}
+            helperText={nameError || ""}
         />
         <TextField
           label="City"
           value={city}
           onChange={(e) => onCityChange(e.target.value)}
+          error={Boolean(cityError)}
+          helperText={cityError || ""}
         />
         <FormControl>
           <InputLabel>Parameter</InputLabel>
@@ -85,6 +94,8 @@ export default function AlertForm({
           type="number"
           value={threshold}
           onChange={(e) => onThresholdChange(e.target.value)}
+          error={Boolean(thresholdError)}
+          helperText={thresholdError || ""}
         />
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <Checkbox
@@ -94,10 +105,24 @@ export default function AlertForm({
           <Typography>Notify via email</Typography>
         </Box>
       </Box>
-      <Box sx={{ mt: 3 }}>
-        <Button variant="contained" onClick={onSubmit} disabled={loading}>
-          Create alert
+      <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
+        <Button
+            variant="contained"
+            onClick={onSubmit}
+            disabled={loading}
+        >
+            {isEditing ? "Save changes" : "Create alert"}
         </Button>
+
+        {isEditing && (
+            <Button
+            variant="outlined"
+            onClick={onCancelEdit}
+            disabled={loading}
+            >
+            Cancel
+            </Button>
+        )}
       </Box>
     </Paper>
   );
