@@ -10,11 +10,23 @@ from app.schemas.alert import (
     DEFAULT_UNITS_BY_PARAM,
     AlertStatus,
 )
+from fastapi import HTTPException
 from app.schemas.weather import WeatherPoint
 from app.services.weather import get_hourly_forecast_for_city
 
 
+def _validate_city(city_name: str) -> None:
+    try:
+        get_hourly_forecast_for_city(city_name=city_name, hours_ahead=1)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail=f"City '{city_name}' is invalid or could not be found.",
+        )
+    
+
 def create_alert(db: Session, user: User, alert_in: AlertCreate) -> Alert:
+    _validate_city(alert_in.city_name)
     unit = DEFAULT_UNITS_BY_PARAM[alert_in.parameter]
 
     alert = Alert(
