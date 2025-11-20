@@ -12,13 +12,27 @@ from app.schemas.alert import (
 )
 from fastapi import HTTPException
 from app.schemas.weather import WeatherPoint
-from app.services.weather import get_hourly_forecast_for_city
+from app.services.weather import get_hourly_forecast_for_city, WeatherServiceError
 
 
 def _validate_city(city_name: str) -> None:
     try:
-        get_hourly_forecast_for_city(city_name=city_name, hours_ahead=1)
-    except Exception:
+        get_hourly_forecast_for_city(
+            city_name=city_name,
+            hours_ahead=24,
+        )
+    except WeatherServiceError as e:
+        text = str(e)
+
+        if "Too Many Calls" in text or "429" in text:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Weather provider rate limit reached. "
+                    "Please try again in a few minutes."
+                ),
+            )
+
         raise HTTPException(
             status_code=400,
             detail=f"City '{city_name}' is invalid or could not be found.",
@@ -92,10 +106,13 @@ def _is_condition_met(
 
 
 def evaluate_single_alert(db: Session, alert: Alert) -> tuple[bool, list[str]]:
-    forecast = get_hourly_forecast_for_city(
-        city_name=alert.city_name,
-        hours_ahead=72,  
-    )
+    try:
+        forecast = get_hourly_forecast_for_city(
+            city_name=alert.city_name,
+            hours_ahead=72,
+        )
+    except:
+        forecast = []
 
     triggered_slots: list[str] = []
 
