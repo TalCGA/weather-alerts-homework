@@ -29,13 +29,14 @@ export default function AlertsTable({ alerts, statuses }) {
             <TableCell>Comparison</TableCell>
             <TableCell>Threshold</TableCell>
             <TableCell>Unit</TableCell>
-            <TableCell align="center">Active</TableCell>
-            <TableCell align="center">Status now</TableCell>
+            <TableCell align="center">Currently active</TableCell>
+            <TableCell align="center">Next 3 days</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {alerts.map((a) => {
             const status = getStatusForAlert(a.id);
+            const upcomingCount = status?.next_3_days_slots?.length || 0;
             return (
               <TableRow key={a.id}>
                 <TableCell>{a.name}</TableCell>
@@ -52,17 +53,20 @@ export default function AlertsTable({ alerts, statuses }) {
                   />
                 </TableCell>
                 <TableCell align="center">
-                  {status && (
-                    <Stack direction="row" justifyContent="center">
-                      <Chip
-                        label={
-                          status.is_triggered_now ? "Triggered" : "Not triggered"
-                        }
-                        color={status.is_triggered_now ? "error" : "default"}
+                    {status && (
+                    <Stack direction="column" alignItems="center" spacing={0.5}>
+                        <Chip
+                        label={upcomingCount > 0 ? "Will trigger" : "No trigger"}
+                        color={upcomingCount > 0 ? "warning" : "default"}
                         size="small"
-                      />
+                        />
+                        <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                        {upcomingCount > 0
+                            ? `${upcomingCount} time(s) in next 3 days`
+                            : "No events in next 3 days"}
+                        </span>
                     </Stack>
-                  )}
+                    )}
                 </TableCell>
               </TableRow>
             );

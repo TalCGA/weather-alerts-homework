@@ -91,14 +91,28 @@ def _is_condition_met(
     return False
 
 
-def evaluate_single_alert(db: Session, alert: Alert) -> bool:
+def evaluate_single_alert(db: Session, alert: Alert) -> tuple[bool, list[str]]:
     forecast = get_hourly_forecast_for_city(
         city_name=alert.city_name,
-        hours_ahead=24,  
+        hours_ahead=72,  
     )
 
-    values = _value_series_for_metric(alert.parameter, forecast)
-    is_on = _is_condition_met(values, alert.comparison, alert.threshold)
+    triggered_slots: list[str] = []
+
+    for point in forecast:
+        if alert.parameter == "temperature":
+            value = point.temperature
+        elif alert.parameter == "windSpeed":
+            value = point.wind_speed
+        elif alert.parameter == "precipitation":
+            value = point.precipitation
+        else:
+            value = point.temperature
+
+        if _is_condition_met([value], alert.comparison, alert.threshold):
+            triggered_slots.append(str(point.time))
+
+    is_on = len(triggered_slots) > 0
 
     old_state = getattr(alert, "is_active", False)
     alert.is_active = is_on
@@ -107,9 +121,8 @@ def evaluate_single_alert(db: Session, alert: Alert) -> bool:
         db.add(alert)
         db.commit()
         db.refresh(alert)
-        # TODO: Add Email notification logic if alert.notify_via_email is True
 
-    return is_on
+    return is_on, triggered_slots
 
 
 def evaluate_alerts_for_user(db: Session, user: User) -> list[AlertStatus]:
@@ -117,13 +130,13 @@ def evaluate_alerts_for_user(db: Session, user: User) -> list[AlertStatus]:
     statuses: list[AlertStatus] = []
 
     for alert in alerts:
-        is_on = evaluate_single_alert(db, alert)
+        is_on, slots = evaluate_single_alert(db, alert)
 
         statuses.append(
             AlertStatus(
                 alert_id=alert.id,
                 is_triggered_now=is_on,
-                next_3_days_slots=[],
+                next_3_days_slots=slots,
             )
         )
 
